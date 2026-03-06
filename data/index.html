@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Elmira — замок</title>
+  <script>(function(){try{var t=localStorage.getItem('tkwm-theme');if(t&&t!=='system')document.documentElement.dataset.theme=t;}catch(_){}})()</script>
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    :root { --bg:#0b1220; --card:#0d1728; --surface:#0f1a2c; --ink:#e8eef7; --mut:#9fb3d1; --br:#1b2a44; --btn:#143057; --link:#9fd0ff; --ok:#95ffa1; --err:#ff9a9a; }
+    :root[data-theme="light"] { --bg:#f0f4f8; --card:#fff; --surface:#e4eaf2; --ink:#1a2236; --mut:#5a7090; --br:#c5d0e0; --btn:#2563eb; --link:#1d4ed8; --ok:#16a34a; --err:#dc2626; }
+    @media (prefers-color-scheme:light){ :root:not([data-theme]){ --bg:#f0f4f8; --card:#fff; --surface:#e4eaf2; --ink:#1a2236; --mut:#5a7090; --br:#c5d0e0; --btn:#2563eb; --link:#1d4ed8; --ok:#16a34a; --err:#dc2626; } }
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,sans-serif}
+    .wrap{max-width:480px;margin:auto;padding:20px}
+    .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:20px}
+    h1{font-size:18px;margin:0 0 16px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+    input,button{padding:10px 12px;border-radius:10px;border:1px solid var(--br);background:var(--surface);color:var(--ink);font-size:16px}
+    button{background:var(--btn);cursor:pointer;border:none}
+    button:disabled{opacity:0.5;cursor:not-allowed}
+    .pwd-row{display:flex;gap:6px;justify-content:center;margin:12px 0}
+    .pwd-row input{width:2.2em;text-align:center;max-width:40px}
+    .btn-main{width:100%;padding:14px;font-size:18px;margin:16px 0 8px}
+    .btn-small{font-size:13px;padding:8px 12px}
+    .status{display:flex;align-items:center;gap:10px;margin:12px 0;padding:10px;border-radius:10px;border:1px solid var(--br);background:var(--surface)}
+    .status-dot{width:14px;height:14px;border-radius:50%;background:var(--mut)}
+    .status-dot.open{background:var(--ok)}
+    .status-dot.closed{background:var(--err)}
+    .status-dot.in_progress{background:#f59e0b;animation:blink 0.8s infinite}
+    .status-dot.unknown{background:#94a3b8}
+    @keyframes blink{50%{opacity:0.4}}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:20px}
+    .modal.show{display:flex}
+    .modal-inner{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:24px;max-width:400px;width:100%}
+    .modal h2{margin:0 0 12px;font-size:16px}
+    .modal-actions{margin-top:16px;display:flex;gap:8px;justify-content:flex-end}
+    .mut{color:var(--mut);font-size:13px}
+    a{color:var(--link);text-decoration:none}
+    .links{margin-top:16px;display:flex;gap:12px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Elmira — замок</h1>
+
+      <div class="status" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">—</span>
+      </div>
+
+      <div class="pwd-row" id="pwdRow">
+        <input type="text" inputmode="numeric" maxlength="1" id="p0" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p1" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p2" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p3" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p4" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p5" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p6" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="p7" autocomplete="off">
+      </div>
+
+      <button class="btn-main" id="btnMain" disabled>ОТКРЫТЬ</button>
+      <button class="btn-small" id="btnChangePass">Сменить пароль</button>
+
+      <div class="row" style="margin-top:16px">
+        <button class="btn-small" id="btnEmergency">Аварийное закрытие</button>
+      </div>
+
+      <div class="links mut">
+        <a href="/wifi">Wi‑Fi</a>
+        <a href="/fs">Файлы</a>
+        <a href="/ota">OTA</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalError">
+    <div class="modal-inner">
+      <h2>Ошибка</h2>
+      <p id="modalErrorText"></p>
+      <div class="modal-actions"><button id="modalErrorOk">OK</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalChangePass">
+    <div class="modal-inner">
+      <h2>Сменить пароль</h2>
+      <p class="mut">Для смены пароля замок должен быть в открытом состоянии.</p>
+      <div class="pwd-row" id="modalPwdRow">
+        <input type="text" inputmode="numeric" maxlength="1" id="m0" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m1" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m2" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m3" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m4" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m5" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m6" autocomplete="off">
+        <input type="text" inputmode="numeric" maxlength="1" id="m7" autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button id="modalChangeCancel">Отмена</button>
+        <button id="modalChangeSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/theme.js"></script>
+  <script>
+    const WS_PORT = 81;
+    const host = location.host;
+    const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + host.replace(/:?\d*$/, ':' + WS_PORT) + '/';
+
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const btnMain = document.getElementById('btnMain');
+    const btnChangePass = document.getElementById('btnChangePass');
+    const btnEmergency = document.getElementById('btnEmergency');
+    const modalError = document.getElementById('modalError');
+    const modalErrorText = document.getElementById('modalErrorText');
+    const modalChangePass = document.getElementById('modalChangePass');
+
+    const pwdIds = ['p0','p1','p2','p3','p4','p5','p6','p7'];
+    const modalIds = ['m0','m1','m2','m3','m4','m5','m6','m7'];
+
+    let lockState = 'unknown';
+    let ws = null;
+    let pendingSetPassword = false;
+
+    function getPassFrom(inputIds) {
+      return inputIds.map(id => document.getElementById(id).value).join('');
+    }
+
+    function setState(state) {
+      lockState = state;
+      statusDot.className = 'status-dot ' + state;
+      const labels = { open: 'Открыто', closed: 'Закрыто', in_progress: 'Открытие/закрытие…', unknown: 'Неизвестно' };
+      statusText.textContent = labels[state] || state;
+
+      const allFilled = pwdIds.every(id => document.getElementById(id).value.length === 1);
+      btnMain.disabled = !allFilled;
+
+      if (state === 'open') btnMain.textContent = 'ЗАКРЫТЬ';
+      else btnMain.textContent = 'ОТКРЫТЬ';
+    }
+
+    function connectWs() {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => { ws.send('getState'); };
+      ws.onmessage = (e) => {
+        try {
+          const j = JSON.parse(e.data);
+          if (j.type === 'lock' && j.state) setState(j.state);
+          if (j.type === 'lock' && j.ok === false && j.error) showError(j.error === 'wrong_pass' ? 'Неверный пароль' : j.error);
+          if (j.type === 'lock' && pendingSetPassword) {
+            pendingSetPassword = false;
+            if (j.ok) modalChangePass.classList.remove('show');
+            else showError(j.error === 'lock_must_be_open' ? 'Замок должен быть открыт' : j.error || 'Ошибка');
+          }
+        } catch (_) {}
+      };
+      ws.onclose = () => { setTimeout(connectWs, 2000); };
+    }
+
+    function showError(msg) {
+      modalErrorText.textContent = msg;
+      modalError.classList.add('show');
+    }
+    document.getElementById('modalErrorOk').onclick = () => modalError.classList.remove('show');
+
+    function focusNext(arr, i) {
+      if (i < arr.length - 1) document.getElementById(arr[i + 1]).focus();
+    }
+    pwdIds.forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.oninput = () => { if (el.value.length >= 1) focusNext(pwdIds, i); };
+      el.onkeydown = (e) => {
+        if (e.key === 'Backspace' && !el.value && i > 0) document.getElementById(pwdIds[i - 1]).focus();
+      };
+    });
+    modalIds.forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.oninput = () => { if (el.value.length >= 1) focusNext(modalIds, i); };
+    });
+
+    btnMain.onclick = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) { showError('Нет связи'); return; }
+      if (lockState === 'open') {
+        ws.send('close');
+      } else {
+        const pass = getPassFrom(pwdIds);
+        if (pass.length !== 8) { showError('Введите 8 цифр'); return; }
+        ws.send(JSON.stringify({ cmd: 'open', pass }));
+      }
+    };
+
+    btnChangePass.onclick = () => {
+      if (lockState !== 'open') {
+        showError('Для смены пароля замок должен быть в открытом состоянии.');
+        return;
+      }
+      modalIds.forEach(id => { document.getElementById(id).value = ''; });
+      modalChangePass.classList.add('show');
+    };
+
+    document.getElementById('modalChangeCancel').onclick = () => modalChangePass.classList.remove('show');
+    document.getElementById('modalChangeSave').onclick = () => {
+      const pass = getPassFrom(modalIds);
+      if (pass.length !== 8) { showError('Введите 8 цифр'); return; }
+      if (!/^\d{8}$/.test(pass)) { showError('Только цифры'); return; }
+      pendingSetPassword = true;
+      ws.send(JSON.stringify({ cmd: 'setPassword', pass }));
+    };
+
+    btnEmergency.onclick = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send('emergencyClose');
+    };
+
+    connectWs();
+  </script>
+</body>
+</html>
