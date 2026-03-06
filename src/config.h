@@ -17,6 +17,8 @@
 // AS5600 по I2C (Wire): SDA=4, SCL=5 — типично для C3
 #define PIN_SDA                   4
 #define PIN_SCL                   5
+// Пищалка для звуковой обратной связи (0 = отключена)
+#define PIN_BUZZER                3
 
 // ─── Направление вращения сервы ───
 // Для открытия и закрытия серва крутится в одну сторону до срабатывания датчика.
@@ -38,5 +40,21 @@
 // ─── NVS namespace и ключ для хранения пароля ───
 #define NVS_NAMESPACE             "elmira"
 #define NVS_KEY_PASSWORD         "pass"
+#define NVS_KEY_AS5600_START      "as5600_start"
+#define NVS_KEY_AS5600_END        "as5600_end"
+#define NVS_KEY_HALL_OPEN_OPEN    "ho_open"   // значение пина «открыто» в положении открыто (0/1)
+#define NVS_KEY_HALL_OPEN_CLOSED  "ho_closed" // значение пина «открыто» в положении закрыто
+#define NVS_KEY_HALL_CLOSED_OPEN  "hc_open"   // значение пина «закрыто» в положении открыто
+#define NVS_KEY_HALL_CLOSED_CLOSED "hc_closed"
+
+// ─── Энергосбережение (батарея) ───
+// После этого времени без активности: добавляем задержку в loop (мс)
+#define POWER_SAVE_IDLE_DELAY_MS  10000
+// После этого времени: понижаем частоту CPU до 80 МГц (мс)
+#define POWER_SAVE_IDLE_CPU_MS    60000
+// Задержка в loop при простое (мс), чтобы не крутить CPU впустую
+#define POWER_SAVE_IDLE_LOOP_MS   50
+// 1 = включить экономию (CPU 80 МГц, задержка, BT выкл), 0 = выключить
+#define POWER_SAVE_ENABLE         1
 
 #endif // CONFIG_H

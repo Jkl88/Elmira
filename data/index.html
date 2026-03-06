@@ -37,6 +37,10 @@
     .mut{color:var(--mut);font-size:13px}
     a{color:var(--link);text-decoration:none}
     .links{margin-top:16px;display:flex;gap:12px;flex-wrap:wrap}
+    .calib{ margin-top:20px; padding-top:16px; border-top:1px solid var(--br); }
+    .calib h2{ font-size:14px; margin:0 0 8px; color:var(--mut); }
+    .calib .row{ margin:4px 0 }
+    .calib-val{ font-family:monospace; background:var(--surface); padding:4px 8px; border-radius:6px; }
   </style>
 </head>
 <body>
@@ -65,6 +69,23 @@
 
       <div class="row" style="margin-top:16px">
         <button class="btn-small" id="btnEmergency">Аварийное закрытие</button>
+      </div>
+
+      <div class="calib">
+        <h2>Калибровка</h2>
+        <div class="row"><span class="mut">AS5600:</span> <span class="calib-val" id="calibAngle">—</span> ° (старт: <span id="calibStart">—</span>°, конец: <span id="calibEnd">—</span>°)</div>
+        <div class="row">
+          <button class="btn-small" id="btnAs5600Start">Запомнить как старт</button>
+          <button class="btn-small" id="btnAs5600End">Запомнить как конец</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="mut">Холлы:</span> открыто=<span class="calib-val" id="calibHallOpen">—</span>, закрыто=<span class="calib-val" id="calibHallClosed">—</span></div>
+        <div class="row">
+          <button class="btn-small" id="btnHallOpen">Сохранить как открыто</button>
+          <button class="btn-small" id="btnHallClosed">Сохранить как закрыто</button>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn-small" id="btnCalibMode">Включить режим калибровки (серва от ключа)</button>
+        </div>
       </div>
 
       <div class="links mut">
@@ -156,6 +177,15 @@
             if (j.ok) modalChangePass.classList.remove('show');
             else showError(j.error === 'lock_must_be_open' ? 'Замок должен быть открыт' : j.error || 'Ошибка');
           }
+          if (j.type === 'calib_data') {
+            document.getElementById('calibAngle').textContent = j.as5600_angle != null ? j.as5600_angle : '—';
+            document.getElementById('calibHallOpen').textContent = j.hall_open;
+            document.getElementById('calibHallClosed').textContent = j.hall_closed;
+          }
+          if (j.type === 'calib_mode') {
+            calibModeOn = j.on;
+            btnCalibMode.textContent = calibModeOn ? 'Выключить режим калибровки' : 'Включить режим калибровки (серва от ключа)';
+          }
         } catch (_) {}
       };
       ws.onclose = () => { setTimeout(connectWs, 2000); };
@@ -214,6 +244,34 @@
     btnEmergency.onclick = () => {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send('emergencyClose');
     };
+
+    let calibModeOn = false;
+    const btnCalibMode = document.getElementById('btnCalibMode');
+    const btnAs5600Start = document.getElementById('btnAs5600Start');
+    const btnAs5600End = document.getElementById('btnAs5600End');
+    const btnHallOpen = document.getElementById('btnHallOpen');
+    const btnHallClosed = document.getElementById('btnHallClosed');
+
+    function fetchStatus() {
+      fetch('/status').then(r => r.json()).then(j => {
+        document.getElementById('calibAngle').textContent = j.as5600_angle != null ? j.as5600_angle : '—';
+        document.getElementById('calibStart').textContent = j.as5600_calib_start != null ? j.as5600_calib_start : '—';
+        document.getElementById('calibEnd').textContent = j.as5600_calib_end != null ? j.as5600_calib_end : '—';
+        document.getElementById('calibHallOpen').textContent = j.hall_open;
+        document.getElementById('calibHallClosed').textContent = j.hall_closed;
+      }).catch(() => {});
+    }
+    setInterval(fetchStatus, 2000);
+    fetchStatus();
+
+    btnCalibMode.onclick = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(calibModeOn ? 'calibModeOff' : 'calibModeOn');
+    };
+    btnAs5600Start.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send('as5600CalibStart'); };
+    btnAs5600End.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send('as5600CalibEnd'); };
+    btnHallOpen.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send('hallCalibOpen'); };
+    btnHallClosed.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send('hallCalibClosed'); };
 
     connectWs();
   </script>

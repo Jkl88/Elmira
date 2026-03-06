@@ -20,4 +20,11 @@ void as5600ResetKeyState();
 /// Проверка: магнит в правильной ориентации и выполнен поворот на 90° по часовой. true = можно открыть
 bool as5600CheckKeyOpened();
 
+/// Калибровка: сохранить текущий угол как «старт» или «конец» в NVS
+bool as5600CalibSaveStart();
+bool as5600CalibSaveEnd();
+/// Текущие калибровочные углы (из NVS или config по умолчанию)
+float as5600GetCalibStartDeg();
+float as5600GetCalibEndDeg();
+
 #endif // AS5600_DRIVER_H

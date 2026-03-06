@@ -11,11 +11,14 @@
 #include "lock_state.h"
 #include "lock_password.h"
 #include "lock_web.h"
+#include "power_save.h"
 #include "hardware/as5600_driver.h"
+#include "hardware/servo_driver.h"
 
 TKWifiManager wifiMgr(80);
 
 static LockState _lastBroadcastState = LOCK_STATE_UNKNOWN;
+static float _calibPrevAngle = -1000.0f;
 
 void setup() {
     Serial.begin(115200);
@@ -32,28 +35,55 @@ void setup() {
 
     wifiMgr.begin("Elmira");
     lockWebSetup(wifiMgr);
+    powerSaveSetup();
 
     Serial.println(F("[Elmira] Готов. Открой http://192.168.4.1 или IP в STA."));
 }
 
 void loop() {
     wifiMgr.loop();
-    lockStateTick();
 
-    // Магнитный ключ: при правильном повороте AS5600 — открыть
-    if (as5600CheckKeyOpened()) {
-        lockRequestOpen();
-        as5600ResetKeyState();
+    if (lockWebIsCalibMode()) {
+        // Режим калибровки: серва следует за поворотом магнитного ключа
+        float a = as5600GetAngle();
+        if (a >= 0) {
+            if (_calibPrevAngle > -500.0f) {
+                float d = a - _calibPrevAngle;
+                if (d > 10.0f) {
+                    servoRun(SERVO_DIR_OPEN);
+                } else if (d < -10.0f) {
+                    servoRun(SERVO_DIR_CLOSE);
+                } else {
+                    servoStop();
+                }
+            }
+            _calibPrevAngle = a;
+        }
+        static uint32_t lastCalib = 0;
+        if (millis() - lastCalib >= 200) {
+            lastCalib = millis();
+            lockWebBroadcastCalibData();
+        }
+    } else {
+        _calibPrevAngle = -1000.0f;
+        if (lockGetState() == LOCK_STATE_IN_PROGRESS) {
+            powerSaveReportActivity();
+        }
+        lockStateTick();
+
+        if (as5600CheckKeyOpened()) {
+            powerSaveReportActivity();
+            lockRequestOpen();
+            as5600ResetKeyState();
+        }
+
+        LockState cur = lockGetState();
+        if (cur != _lastBroadcastState) {
+            _lastBroadcastState = cur;
+            lockWebBroadcastState();
+        }
     }
 
-    // Рассылка состояния по WebSocket при изменении
-    LockState cur = lockGetState();
-    if (cur != _lastBroadcastState) {
-        _lastBroadcastState = cur;
-        lockWebBroadcastState();
-    }
-
-    // Энергосбережение: при питании от батареи здесь можно добавить
-    // light sleep или понижение частоты CPU при простое (см. .apprules).
+    powerSaveTick();
     yield();
 }

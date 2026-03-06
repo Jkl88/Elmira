@@ -6,6 +6,7 @@
 #include "config.h"
 #include "hardware/hall_sensors.h"
 #include "hardware/servo_driver.h"
+#include "hardware/buzzer.h"
 
 static LockState _state = LOCK_STATE_UNKNOWN;
 static enum { IDLE, OPENING, CLOSING, EMERGENCY_CLOSING } _action = IDLE;
@@ -13,6 +14,7 @@ static enum { IDLE, OPENING, CLOSING, EMERGENCY_CLOSING } _action = IDLE;
 void lockStateInit() {
     hallSensorsInit();
     servoInit();
+    buzzerInit();
     int h = hallGetState();
     if (h == 0) _state = LOCK_STATE_CLOSED;
     else if (h == 1) _state = LOCK_STATE_OPEN;
@@ -29,12 +31,14 @@ void lockStateTick() {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_OPEN;
+            buzzerSuccess();
         } else if (hall == -1) {
             lockEmergencyStop();
         } else if (servoCheckTimeout()) {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_UNKNOWN;
+            buzzerError();
         }
         break;
 
@@ -43,12 +47,14 @@ void lockStateTick() {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_CLOSED;
+            buzzerSuccess();
         } else if (hall == -1) {
             lockEmergencyStop();
         } else if (servoCheckTimeout()) {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_UNKNOWN;
+            buzzerError();
         }
         break;
 
@@ -57,10 +63,12 @@ void lockStateTick() {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_CLOSED;
+            buzzerSuccess();
         } else if (hall == -1) {
             servoStop();
             _action = IDLE;
             _state = LOCK_STATE_UNKNOWN;
+            buzzerError();
         }
         break;
 
@@ -121,4 +129,5 @@ void lockEmergencyStop() {
     servoStop();
     _action = IDLE;
     _state = LOCK_STATE_UNKNOWN;
+    buzzerError();
 }
